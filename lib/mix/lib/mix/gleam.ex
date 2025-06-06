@@ -22,7 +22,7 @@ defmodule Mix.Gleam do
 
     dev_deps =
       Map.get(json, "dev-dependencies", %{})
-      |> Enum.map(&parse_dep(&1, only: :dev))
+      |> Enum.map(&parse_dep(&1, only: [:dev, :test]))
 
     %{
       name: Map.fetch!(json, "name"),

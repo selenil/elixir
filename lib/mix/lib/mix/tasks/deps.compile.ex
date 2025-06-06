@@ -353,6 +353,7 @@ defmodule Mix.Tasks.Deps.Compile do
     |> push_gleam_project(dep, Keyword.fetch!(config, :deps_path))
 
     Code.prepend_path(Path.join(out, "ebin"), cache: true)
+    true
   end
 
   defp push_gleam_project(toml, dep, deps_path) do
@@ -375,11 +376,26 @@ defmodule Mix.Tasks.Deps.Compile do
         erlc_include_path: Path.join(build, "include")
       ]
 
-    Mix.ProjectStack.pop()
-    Mix.ProjectStack.push(dep.app, config, "nofile")
-    # Somehow running just `compile` task won't work (doesn't compile the .erl files)
-    Mix.Task.run("compile.erlang", ["--force"])
-    Mix.Task.run("compile.app")
+    config =
+      Mix.Project.deps_config()
+      |> Keyword.merge(config)
+      |> Keyword.put(:build_scm, dep.scm)
+      |> Keyword.put(:deps_app_path, build)
+
+    env = dep.opts[:env] || :prod
+    old_env = Mix.env()
+
+    try do
+      Mix.env(env)
+      Mix.ProjectStack.push(dep.app, config, "nofile")
+
+      options = ["--from-mix-deps-compile", "--no-warnings-as-errors", "--no-code-path-pruning"]
+      Mix.Task.run("compile", options)
+
+      Mix.ProjectStack.pop()
+    after
+      Mix.env(old_env)
+    end
   end
 
   defp make_command(dep) do
